@@ -108,11 +108,19 @@ module Paperclip
     #   Paperclip will attempt to create it. The bucket name will not be interpolated.
     #   You can define the bucket as a Proc if you want to determine it's name at runtime.
     #   Paperclip will call that Proc with attachment as the only argument.
-    # * +url+: There are two options for the S3 url. You can choose to have the bucket's name
+    # * +url+: There are three options for the S3 url. You can choose to have the bucket's name
     #   placed domain-style (bucket.s3.amazonaws.com) or path-style (s3.amazonaws.com/bucket).
     #   Normally, this won't matter in the slightest and you can leave the default (which is
     #   path-style, or :s3_path_url). But in some cases paths don't work and you need to use
-    #   the domain-style (:s3_domain_url). Anything else here will be treated like path-style.
+    #   the domain-style (:s3_domain_url). Additionally, in case you are using Amazon's
+    #   Cloudfront CDN on top of your S3 bucket, you can use :cloudfront_url here.
+    #   If so, you'll also -have- to specifiy your CF's CNAME (either your custom one or the
+    #   one provided by amazon) via the 'cloudfront_cname' option (see below). However, only
+    #   HTTP and NOT HTTPS will be used (Cloudfront limitation).
+    #   Anything else here will be treated like path-style.
+    # * +cloudfront_cname+: This is only relevant in case you've specified :cloudfront_url
+    #   for the +url+ option above. Whatever CNAME you've used or received during setting up
+    #   Cloudfront, that's what you want to specificy here.
     # * +path+: This is the key under the bucket in which the file will be stored. The
     #   URL will be constructed from the bucket and the path. This is what you will want
     #   to interpolate. Keys should be unique, like filenames, and despite the fact that
@@ -129,13 +137,18 @@ module Paperclip
           @s3_permissions = @options[:s3_permissions] || 'public-read'
           @s3_protocol    = @options[:s3_protocol]    || (@s3_permissions == 'public-read' ? 'http' : 'https')
           @s3_headers     = @options[:s3_headers]     || {}
-          @url            = ":s3_path_url" unless @url.to_s.match(/^:s3.*url$/)
+          @cloudfront_cname = @options[:cloudfront_cname]  || ""
+          @url            = ":cloudfront_url" unless @cloudfront_cname.blank?
+          @url            = ":s3_path_url" unless (@url == ":cloudfront_url" || @url.to_s.match(/^:s3.*url$/))
         end
         base.class.interpolations[:s3_path_url] = lambda do |attachment, style|
           "#{attachment.s3_protocol}://s3.amazonaws.com/#{attachment.bucket_name}/#{attachment.path(style).gsub(%r{^/}, "")}"
         end
         base.class.interpolations[:s3_domain_url] = lambda do |attachment, style|
           "#{attachment.s3_protocol}://#{attachment.bucket_name}.s3.amazonaws.com/#{attachment.path(style).gsub(%r{^/}, "")}"
+        end
+        base.class.interpolations[:cloudfront_url] = lambda do |attachment, style|
+          "http://#{attachment.cloudfront_cname}/#{attachment.path(style).gsub(%r{^/}, "")}"
         end
         ActiveRecord::Base.logger.info("[paperclip] S3 Storage Initalized.")
       end
@@ -165,6 +178,10 @@ module Paperclip
 
       def s3_protocol
         @s3_protocol
+      end
+
+      def cloudfront_cname
+        @cloudfront_cname
       end
 
       # Returns representation of the data of the file assigned to the given
