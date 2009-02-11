@@ -137,7 +137,7 @@ class StorageTest < Test::Unit::TestCase
                       'secret_access_key' => "54321"
                     },
                     :url => :cloudfront_url,
-                    :cloudfront_cname => "some.customcname.com"
+                    :cloudfront_domain => "some.customcname.com"
     end
 
     should "be extended by the S3 module" do

@@ -115,12 +115,14 @@ module Paperclip
     #   the domain-style (:s3_domain_url). Additionally, in case you are using Amazon's
     #   Cloudfront CDN on top of your S3 bucket, you can use :cloudfront_url here.
     #   If so, you'll also -have- to specifiy your CF's CNAME (either your custom one or the
-    #   one provided by amazon) via the 'cloudfront_cname' option (see below). However, only
+    #   one provided by amazon) via the 'cloudfront_domain' option (see below). However, only
     #   HTTP and NOT HTTPS will be used (Cloudfront limitation).
     #   Anything else here will be treated like path-style.
-    # * +cloudfront_cname+: This is only relevant in case you've specified :cloudfront_url
-    #   for the +url+ option above. Whatever CNAME you've used or received during setting up
+    # * +cloudfront_domain+: This is only relevant in case you've specified :cloudfront_url
+    #   for the +url+ option above. Whatever FQDN you've used or received during setting up
     #   Cloudfront, that's what you want to specificy here.
+    #   See http://docs.amazonwebservices.com/AmazonCloudFront/latest/GettingStartedGuide/
+    #   fore more information about putting cloudfront on top of your s3 bucket(s).
     # * +path+: This is the key under the bucket in which the file will be stored. The
     #   URL will be constructed from the bucket and the path. This is what you will want
     #   to interpolate. Keys should be unique, like filenames, and despite the fact that
@@ -137,8 +139,8 @@ module Paperclip
           @s3_permissions = @options[:s3_permissions] || 'public-read'
           @s3_protocol    = @options[:s3_protocol]    || (@s3_permissions == 'public-read' ? 'http' : 'https')
           @s3_headers     = @options[:s3_headers]     || {}
-          @cloudfront_cname = @options[:cloudfront_cname]  || ""
-          @url            = ":cloudfront_url" unless @cloudfront_cname.blank?
+          @cloudfront_domain = @options[:cloudfront_domain]  || ""
+          @url            = ":cloudfront_url" unless @cloudfront_domain.blank?
           @url            = ":s3_path_url" unless (@url == ":cloudfront_url" || @url.to_s.match(/^:s3.*url$/))
         end
         base.class.interpolations[:s3_path_url] = lambda do |attachment, style|
@@ -148,7 +150,7 @@ module Paperclip
           "#{attachment.s3_protocol}://#{attachment.bucket_name}.s3.amazonaws.com/#{attachment.path(style).gsub(%r{^/}, "")}"
         end
         base.class.interpolations[:cloudfront_url] = lambda do |attachment, style|
-          "http://#{attachment.cloudfront_cname}/#{attachment.path(style).gsub(%r{^/}, "")}"
+          "http://#{attachment.cloudfront_domain}/#{attachment.path(style).gsub(%r{^/}, "")}"
         end
         ActiveRecord::Base.logger.info("[paperclip] S3 Storage Initalized.")
       end
@@ -180,8 +182,8 @@ module Paperclip
         @s3_protocol
       end
 
-      def cloudfront_cname
-        @cloudfront_cname
+      def cloudfront_domain
+        @cloudfront_domain
       end
 
       # Returns representation of the data of the file assigned to the given
