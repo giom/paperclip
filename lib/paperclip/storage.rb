@@ -144,7 +144,7 @@ module Paperclip
           @s3_headers     = @options[:s3_headers]     || {}
 
           @s3_host_alias  = @options[:s3_host_alias]
-          @cloudfront_domain = @options[:cloudfront_domain]  || ""
+          @cloudfront_domain = @options[:cloudfront_domain]  || @s3_credentials[:cloudfront_domain] || ""
           @url            = ":cloudfront_url" unless @cloudfront_domain.blank?
           @url            = ":s3_path_url" unless (@url == ":cloudfront_url" || @url.to_s.match(/^:s3.*url$/))
           AWS::S3::Base.establish_connection!( @s3_options.merge(
