@@ -174,6 +174,79 @@ class StorageTest < Test::Unit::TestCase
     end
   end
   
+  context "An attachment with S3 storage in combination with Cloudfront support" do
+    setup do
+      rebuild_model :storage => :s3,
+                    :bucket => "testing",
+                    :path => ":attachment/:style/:basename.:extension",
+                    :s3_credentials => {
+                      'access_key_id' => "12345",
+                      'secret_access_key' => "54321"
+                    },
+                    :url => :cloudfront_url,
+                    :cloudfront_domain => "some.customcname.com"
+    end
+
+    should "be extended by the S3 module" do
+      assert Dummy.new.avatar.is_a?(Paperclip::Storage::S3)
+    end
+
+    should "not be extended by the Filesystem module" do
+      assert ! Dummy.new.avatar.is_a?(Paperclip::Storage::Filesystem)
+    end
+
+    context "when assigned" do
+      setup do
+        @file = File.new(File.join(File.dirname(__FILE__), 'fixtures', '5k.png'), 'rb')
+        @dummy = Dummy.new
+        @dummy.avatar = @file
+      end
+
+      teardown { @file.close }
+
+      should "not get a bucket to get a URL" do
+        @dummy.avatar.expects(:s3).never
+        @dummy.avatar.expects(:s3_bucket).never
+        assert_match %r{^http://some\.customcname\.com/avatars/original/5k\.png}, @dummy.avatar.url
+      end
+
+      context "and saved" do
+        setup do
+          @s3_mock     = stub
+          @bucket_mock = stub
+          RightAws::S3.expects(:new).with("12345", "54321", {}).returns(@s3_mock)
+          @s3_mock.expects(:bucket).with("testing", true, "public-read").returns(@bucket_mock)
+          @key_mock = stub
+          @bucket_mock.expects(:key).returns(@key_mock)
+          @key_mock.expects(:data=)
+          @key_mock.expects(:put).with(nil, 'public-read', 'Content-type' => 'image/png')
+          @dummy.save
+        end
+
+        should "succeed" do
+          assert true
+        end
+      end
+      
+      context "and remove" do
+        setup do
+          @s3_mock     = stub
+          @bucket_mock = stub
+          RightAws::S3.expects(:new).with("12345", "54321", {}).returns(@s3_mock)
+          @s3_mock.expects(:bucket).with("testing", true, "public-read").returns(@bucket_mock)
+          @key_mock = stub
+          @bucket_mock.expects(:key).at_least(2).returns(@key_mock)
+          @key_mock.expects(:delete)
+          @dummy.destroy_attached_files
+        end
+
+        should "succeed" do
+          assert true
+        end
+      end
+    end
+  end
+  
   context "An attachment with S3 storage and bucket defined as a Proc" do
     setup do
       AWS::S3::Base.stubs(:establish_connection!)
