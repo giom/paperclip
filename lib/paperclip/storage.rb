@@ -161,7 +161,7 @@ module Paperclip
         Paperclip.interpolates(:s3_domain_url) do |attachment, style|
           "#{attachment.s3_protocol}://#{attachment.bucket_name}.s3.amazonaws.com/#{attachment.path(style).gsub(%r{^/}, "")}"
         end
-        Paperclip.interpolates[:cloudfront_url] do |attachment, style|
+        Paperclip.interpolates(:cloudfront_url) do |attachment, style|
           "http://#{attachment.cloudfront_domain}/#{attachment.path(style).gsub(%r{^/}, "")}"
         end
         ActiveRecord::Base.logger.info("[paperclip] S3 Storage Initalized.")
